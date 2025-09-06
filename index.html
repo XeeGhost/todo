@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Manager</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #6366f1;
+      --secondary: #f3f4f6;
+      --accent: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --dark: #1f2937;
+      --light: #ffffff;
+    }
+    body { margin:0; font-family: system-ui, sans-serif; background: var(--secondary); }
+    .app { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; }
+    .sidebar { background: var(--dark); color: var(--light); padding: 1rem; }
+    .sidebar h2 { margin-top:0; }
+    .menu { list-style:none; padding:0; margin:1rem 0; }
+    .menu li button { width:100%; background:none; border:none; color:var(--light); text-align:left; padding:0.5rem 0; cursor:pointer; }
+    .menu li button.active { color: var(--primary); }
+    .main { padding: 2rem; }
+    .task-form { background: var(--light); padding: 1rem; border-radius: 0.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: grid; gap:0.5rem; margin-bottom:1rem; }
+    .task-list { list-style:none; padding:0; margin:0; }
+    .task-item { background: var(--light); padding: 1rem; margin-bottom:0.5rem; border-radius:0.5rem; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.05); }
+    .task-item.completed { opacity:0.6; text-decoration: line-through; }
+    .task-item.high-priority { border-left:4px solid var(--danger); }
+    .task-item.medium-priority { border-left:4px solid var(--warning); }
+    .task-item.low-priority { border-left:4px solid var(--accent); }
+    .task-actions button { background:none; border:none; cursor:pointer; margin-left:0.5rem; font-size:1.2rem; }
+    .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:1rem; margin-top:2rem; }
+    .stat-card { background: var(--light); padding:1rem; border-radius:0.5rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.1); }
+    .empty-state { text-align:center; color:#6b7280; margin-top:2rem; }
+    @media(max-width:768px){ .app { grid-template-columns: 1fr; } .sidebar { display:none; } }
+    .modal { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; visibility:hidden; opacity:0; transition:0.2s; }
+    .modal.active { visibility:visible; opacity:1; }
+    .modal-content { background: var(--light); padding:2rem; border-radius:0.5rem; width:100%; max-width:500px; }
+    /* Login/Signup form styles */
+    .auth-form { max-width:400px; margin:2rem auto; background: var(--light); padding:2rem; border-radius:0.5rem; box-shadow:0 2px 4px rgba(0,0,0,0.1); display:grid; gap:1rem; }
+    .auth-form input { padding:0.5rem; border-radius:0.25rem; border:1px solid #ccc; width:100%; }
+    .auth-form button { background:var(--primary); color:white; border:none; padding:0.5rem; border-radius:0.25rem; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <!-- Auth Forms -->
+  <div id="auth-container">
+    <form id="signup-form" class="auth-form">
+      <h3>Sign Up</h3>
+      <input type="email" id="signup-email" placeholder="Email" required>
+      <input type="password" id="signup-password" placeholder="Password" required>
+      <button type="submit">Sign Up</button>
+      <p>Already have an account? <button type="button" id="show-login">Login</button></p>
+    </form>
+
+    <form id="login-form" class="auth-form" style="display:none;">
+      <h3>Login</h3>
+      <input type="email" id="login-email" placeholder="Email" required>
+      <input type="password" id="login-password" placeholder="Password" required>
+      <button type="submit">Login</button>
+      <p>Don't have an account? <button type="button" id="show-signup">Sign Up</button></p>
+    </form>
+  </div>
+
+  <!-- Main App -->
+  <div class="app" id="app" style="display:none;">
+    <aside class="sidebar">
+      <h2>Task Manager</h2>
+      <ul class="menu">
+        <li><button id="all-tasks" class="active"><i class="fas fa-list"></i> All Tasks</button></li>
+        <li><button id="active-tasks"><i class="fas fa-tasks"></i> Active</button></li>
+        <li><button id="completed-tasks"><i class="fas fa-check"></i> Completed</button></li>
+      </ul>
+      <button id="logout" style="margin-top:2rem; background:var(--danger); color:white; border:none; padding:0.5rem; width:100%; border-radius:0.25rem;">Logout</button>
+    </aside>
+    <main class="main">
+      <form id="task-form" class="task-form">
+        <input type="text" id="task-input" placeholder="Add new task..." required>
+        <input type="date" id="task-date">
+        <select id="task-priority">
+          <option value="low">Low Priority</option>
+          <option value="medium">Medium Priority</option>
+          <option value="high">High Priority</option>
+        </select>
+        <button type="submit">Add Task</button>
+      </form>
+      <ul class="task-list" id="task-list"></ul>
+      <div class="empty-state" id="empty-state">
+        <i class="fas fa-clipboard-list fa-2x"></i>
+        <h3>No tasks yet</h3>
+        <p>Add a new task to get started</p>
+      </div>
+      <div class="stats">
+        <div class="stat-card"><h3>Total</h3><p id="total-tasks">0</p></div>
+        <div class="stat-card"><h3>Active</h3><p id="active-tasks-count">0</p></div>
+        <div class="stat-card"><h3>Completed</h3><p id="completed-tasks-count">0</p></div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal" id="edit-modal">
+    <div class="modal-content">
+      <h3>Edit Task</h3>
+      <form id="edit-form">
+        <input type="text" id="edit-task-input" required>
+        <input type="date" id="edit-task-date">
+        <select id="edit-task-priority">
+          <option value="low">Low Priority</option>
+          <option value="medium">Medium Priority</option>
+          <option value="high">High Priority</option>
+        </select>
+        <button type="submit">Save</button>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDe8yzLDj8Y-gzHqS2arkwbD989LwIO4DQ",
+      authDomain: "todoapp-5d6ec.firebaseapp.com",
+      projectId: "todoapp-5d6ec",
+      storageBucket: "todoapp-5d6ec.appspot.com",
+      messagingSenderId: "720430702785",
+      appId: "1:720430702785:web:af612a4935cdc731ccb440",
+      measurementId: "G-YG48X4LZ97"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const auth = getAuth();
+    const db = getFirestore();
+
+    // Auth form toggle
+    const signupForm = document.getElementById("signup-form");
+    const loginForm = document.getElementById("login-form");
+    document.getElementById("show-login").addEventListener("click",()=>{signupForm.style.display="none"; loginForm.style.display="grid";});
+    document.getElementById("show-signup").addEventListener("click",()=>{loginForm.style.display="none"; signupForm.style.display="grid";});
+
+    // Signup
+    signupForm.addEventListener("submit", async e=>{
+      e.preventDefault();
+      const email = document.getElementById("signup-email").value;
+      const password = document.getElementById("signup-password").value;
+      try {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } catch(err){ alert(err.message); }
+    });
+
+    // Login
+    loginForm.addEventListener("submit", async e=>{
+      e.preventDefault();
+      const email = document.getElementById("login-email").value;
+      const password = document.getElementById("login-password").value;
+      try { await signInWithEmailAndPassword(auth, email, password); }
+      catch(err){ alert(err.message); }
+    });
+
+    // Logout
+    document.getElementById("logout").addEventListener("click", async ()=>{
+      await signOut(auth);
+    });
+
+    // Show app only if user logged in
+    const appDiv = document.getElementById("app");
+    const authContainer = document.getElementById("auth-container");
+    let tasks = [], editingTaskId=null, filter="all";
+
+    onAuthStateChanged(auth, user=>{
+      if(user){
+        authContainer.style.display="none";
+        appDiv.style.display="grid";
+        loadTasks();
+      } else {
+        authContainer.style.display="block";
+        appDiv.style.display="none";
+      }
+    });
+
+    // Firestore: add task
+    document.getElementById("task-form").addEventListener("submit", async e=>{
+      e.preventDefault();
+      const user = auth.currentUser;
+      if(!user) return alert("Please login first");
+      const text = document.getElementById("task-input").value;
+      const due = document.getElementById("task-date").value;
+      const priority = document.getElementById("task-priority").value;
+      await addDoc(collection(db, "users", user.uid, "tasks"), {text, dueDate: due, priority, completed:false, createdAt: new Date()});
+      e.target.reset();
+      loadTasks();
+    });
+
+    // Firestore: load tasks
+    async function loadTasks(){
+      const user = auth.currentUser;
+      if(!user) return;
+      const q = query(collection(db, "users", user.uid, "tasks"));
+      const snapshot = await getDocs(q);
+      tasks = [];
+      snapshot.forEach(docSnap => tasks.push({id: docSnap.id, ...docSnap.data()}));
+      renderTasks();
+    }
+
+    // Render tasks
+    function renderTasks(){
+      const list = document.getElementById("task-list");
+      list.innerHTML="";
+      const filtered = tasks.filter(t=>filter==="all" || (filter==="active" && !t.completed) || (filter==="completed" && t.completed));
+      document.getElementById("empty-state").style.display = filtered.length ? "none" : "block";
+      filtered.forEach(task=>{
+        const li = document.createElement("li");
+        li.className=`task-item ${task.completed?"completed":""} ${task.priority}-priority`;
+        li.innerHTML=`
+          <div>
+            <input type="checkbox" ${task.completed?"checked":""}>
+            <span>${task.text}</span>
+            ${task.dueDate?`<small style="margin-left:0.5rem;color:${new Date(task.dueDate)<new Date()?'var(--danger)':'inherit'}">Due: ${task.dueDate}</small>`:""}
+          </div>
+          <div class="task-actions">
+            <button aria-label="Edit task"><i class="fas fa-edit"></i></button>
+            <button aria-label="Delete task"><i class="fas fa-trash"></i></button>
+          </div>`;
+        // checkbox toggle
+        li.querySelector('input').addEventListener('change', async ()=>{
+          task.completed = !task.completed;
+          await updateDoc(doc(db,"users",auth.currentUser.uid,"tasks",task.id), {completed: task.completed});
+          renderTasks();
+        });
+        // edit button
+        li.querySelector('.fa-edit').parentElement.addEventListener('click', ()=> openEditModal(task));
+        // delete button
+        li.querySelector('.fa-trash').parentElement.addEventListener('click', async ()=>{
+          await deleteDoc(doc(db,"users",auth.currentUser.uid,"tasks",task.id));
+          loadTasks();
+        });
+        list.appendChild(li);
+      });
+      document.getElementById("total-tasks").textContent=tasks.length;
+      document.getElementById("active-tasks-count").textContent=tasks.filter(t=>!t.completed).length;
+      document.getElementById("completed-tasks-count").textContent=tasks.filter(t=>t.completed).length;
+    }
+
+    // Filter buttons
+    document.getElementById('all-tasks').addEventListener('click',()=>{filter='all'; renderTasks();});
+    document.getElementById('active-tasks').addEventListener('click',()=>{filter='active'; renderTasks();});
+    document.getElementById('completed-tasks').addEventListener('click',()=>{filter='completed'; renderTasks();});
+
+    // Edit modal
+    function openEditModal(task){
+      editingTaskId=task.id;
+      document.getElementById("edit-task-input").value = task.text;
+      document.getElementById("edit-task-date").value = task.dueDate;
+      document.getElementById("edit-task-priority").value = task.priority;
+      document.getElementById("edit-modal").classList.add("active");
+    }
+    document.getElementById("edit-form").addEventListener("submit", async e=>{
+      e.preventDefault();
+      const task = tasks.find(t=>t.id===editingTaskId);
+      task.text = document.getElementById("edit-task-input").value;
+      task.dueDate = document.getElementById("edit-task-date").value;
+      task.priority = document.getElementById("edit-task-priority").value;
+      await updateDoc(doc(db,"users",auth.currentUser.uid,"tasks",task.id), {text: task.text, dueDate: task.dueDate, priority: task.priority});
+      document.getElementById("edit-modal").classList.remove("active");
+      loadTasks();
+    });
+    document.getElementById("edit-modal").addEventListener("click", e=>{
+      if(e.target===e.currentTarget) e.currentTarget.classList.remove("active");
+    });
+  </script>
+</body>
+</html>
