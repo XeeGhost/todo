@@ -1,0 +1,260 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To-Do List App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background-color: #f0f0f0;
+      margin: 0;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 24px;
+    }
+    input[type="text"], input[type="email"], input[type="password"] {
+      width: calc(100% - 20px);
+      padding: 8px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      padding: 8px 16px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    .auth-section, .todo-section {
+      margin-bottom: 20px;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+    }
+    .error {
+      color: red;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="auth-section" id="authSection">
+      <h1>To-Do List</h1>
+      <input type="email" id="email" placeholder="Email" />
+      <input type="password" id="password" placeholder="Password" />
+      <button onclick="signUp()">Sign Up</button>
+      <button onclick="signIn()">Sign In</button>
+      <p class="error" id="error"></p>
+    </div>
+    <div class="todo-section" id="todoSection" style="display: none;">
+      <h1>My To-Do List</h1>
+      <button onclick="signOut()">Sign Out</button>
+      <input type="text" id="taskInput" placeholder="Add a new task" />
+      <button onclick="addTask()">Add Task</button>
+      <ul id="taskList"></ul>
+    </div>
+  </div>
+
+  <!-- Firebase SDK (Modular) -->
+  <script type="module">
+    // Import Firebase SDK modules
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getDatabase, ref, push, set, onValue, update, remove, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+    // Your Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDe8yzLDj8Y-gzHqS2arkwbD989LwIO4DQ",
+      authDomain: "todoapp-5d6ec.firebaseapp.com",
+      projectId: "todoapp-5d6ec",
+      storageBucket: "todoapp-5d6ec.firebasestorage.app",
+      messagingSenderId: "720430702785",
+      appId: "1:720430702785:web:af612a4935cdc731ccb440",
+      measurementId: "G-YG48X4LZ97"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const database = getDatabase(app);
+
+    // Authentication functions
+    window.signUp = async function() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      try {
+        await createUserWithEmailAndPassword(auth, email, password);
+        showTodoSection();
+      } catch (error) {
+        document.getElementById('error').innerText = error.message;
+      }
+    };
+
+    window.signIn = async function() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        showTodoSection();
+      } catch (error) {
+        document.getElementById('error').innerText = error.message;
+      }
+    };
+
+    window.signOut = async function() {
+      try {
+        await signOut(auth);
+        document.getElementById('authSection').style.display = 'block';
+        document.getElementById('todoSection').style.display = 'none';
+        document.getElementById('taskList').innerHTML = '';
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
+      } catch (error) {
+        document.getElementById('error').innerText = error.message;
+      }
+    };
+
+    // Show to-do section after login
+    function showTodoSection() {
+      document.getElementById('authSection').style.display = 'none';
+      document.getElementById('todoSection').style.display = 'block';
+      document.getElementById('error').innerText = '';
+    }
+
+    // Real-time task management
+    window.addTask = async function() {
+      const taskInput = document.getElementById('taskInput');
+      const taskText = taskInput.value.trim();
+      if (taskText && auth.currentUser) {
+        const userId = auth.currentUser.uid;
+        const taskRef = ref(database, 'tasks/' + userId);
+        try {
+          await push(taskRef, {
+            text: taskText,
+            completed: false,
+            timestamp: serverTimestamp()
+          });
+          taskInput.value = '';
+        } catch (error) {
+          document.getElementById('error').innerText = error.message;
+        }
+      }
+    };
+
+    // Real-time listener for tasks
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        const userId = user.uid;
+        const tasksRef = ref(database, 'tasks/' + userId);
+        onValue(tasksRef, snapshot => {
+          const taskList = document.getElementById('taskList');
+          taskList.innerHTML = '';
+          snapshot.forEach(child => {
+            const task = child.val();
+            const taskId = child.key;
+            const li = document.createElement('li');
+            li.innerHTML = `
+              <span style="text-decoration: ${task.completed ? 'line-through' : 'none'}">
+                ${task.text}
+              </span>
+              <div>
+                <button onclick="toggleTask('${taskId}', ${task.completed})">✔</button>
+                <button onclick="deleteTask('${taskId}')">🗑</button>
+              </div>
+            `;
+            taskList.appendChild(li);
+          });
+        }, error => {
+          document.getElementById('error').innerText = error.message;
+        });
+      }
+    });
+
+    window.toggleTask = async function(taskId, completed) {
+      const userId = auth.currentUser.uid;
+      const taskRef = ref(database, 'tasks/' + userId + '/' + taskId);
+      try {
+        await update(taskRef, { completed: !completed });
+      } catch (error) {
+        document.getElementById('error').innerText = error.message;
+      }
+    };
+
+    window.deleteTask = async function(taskId) {
+      const userId = auth.currentUser.uid;
+      const taskRef = ref(database, 'tasks/' + userId + '/' + taskId);
+      try {
+        await remove(taskRef);
+      } catch (error) {
+        document.getElementById('error').innerText = error.message;
+      }
+    };
+  </script>
+</body>
+</html>
