@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskFlow - Responsive To-Do List</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #6c5ce7;
+      --secondary: #a29bfe;
+      --accent: #fd79a8;
+      --light: #f8f9fa;
+      --dark: #2d3436;
+      --success: #00b894;
+      --warning: #fdcb6e;
+      --danger: #d63031;
+      --gray: #dfe6e9;
+      --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      --transition: all 0.3s ease;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      color: var(--dark);
+    }
+
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: var(--card-shadow);
+      width: 100%;
+      max-width: 500px;
+      transition: var(--transition);
+    }
+
+    .app-header {
+      text-align: center;
+      margin-bottom: 25px;
+      position: relative;
+    }
+
+    .app-header h1 {
+      color: var(--primary);
+      font-size: 32px;
+      margin-bottom: 5px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .app-header p {
+      color: var(--dark);
+      opacity: 0.7;
+      font-size: 14px;
+    }
+
+    .auth-section, .todo-section {
+      transition: var(--transition);
+    }
+
+    .input-group {
+      margin-bottom: 15px;
+      position: relative;
+    }
+
+    .input-group i {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--secondary);
+    }
+
+    input[type="email"], input[type="password"], input[type="text"] {
+      width: 100%;
+      padding: 15px 15px 15px 45px;
+      border: 2px solid var(--gray);
+      border-radius: 10px;
+      font-size: 16px;
+      transition: var(--transition);
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.2);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+      flex: 1;
+    }
+
+    .btn-primary:hover {
+      background-color: #5649c5;
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background-color: var(--secondary);
+      color: white;
+      flex: 1;
+    }
+
+    .btn-secondary:hover {
+      background-color: #9186fd;
+      transform: translateY(-2px);
+    }
+
+    .btn-danger {
+      background-color: var(--danger);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background-color: #c02b2b;
+      transform: translateY(-2px);
+    }
+
+    .btn-success {
+      background-color: var(--success);
+      color: white;
+    }
+
+    .btn-success:hover {
+      background-color: #00a382;
+      transform: translateY(-2px);
+    }
+
+    .btn-accent {
+      background-color: var(--accent);
+      color: white;
+      padding: 10px 15px;
+    }
+
+    .btn-accent:hover {
+      background-color: #fc6ba7;
+      transform: translateY(-2px);
+    }
+
+    .error {
+      color: var(--danger);
+      font-size: 14px;
+      margin: 10px 0;
+      text-align: center;
+      min-height: 20px;
+    }
+
+    .task-stats {
+      display: flex;
+      justify-content: space-between;
+      margin: 15px 0;
+      padding: 10px;
+      background-color: rgba(162, 155, 254, 0.1);
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .stat-value {
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--primary);
+    }
+
+    .task-filters {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      background: none;
+      border: 2px solid var(--gray);
+      color: var(--dark);
+      padding: 8px 15px;
+      font-size: 14px;
+    }
+
+    .filter-btn.active {
+      background-color: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    ul {
+      list-style: none;
+      margin: 20px 0;
+      max-height: 350px;
+      overflow-y: auto;
+      padding-right: 5px;
+    }
+
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+      background-color: #f8f9fa;
+      transition: var(--transition);
+      animation: fadeIn 0.5s ease;
+    }
+
+    li:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    li.completed {
+      background-color: rgba(0, 184, 148, 0.1);
+    }
+
+    li.completed .task-text {
+      text-decoration: line-through;
+      color: #777;
+    }
+
+    .task-text {
+      flex: 1;
+      padding: 0 15px;
+      word-break: break-word;
+    }
+
+    .task-actions {
+      display: flex;
+      gap: 5px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px;
+      color: #999;
+    }
+
+    .empty-state i {
+      font-size: 50px;
+      margin-bottom: 15px;
+      color: var(--secondary);
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--gray);
+    }
+
+    .user-email {
+      font-weight: 500;
+      color: var(--primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--secondary);
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--primary);
+    }
+
+    /* Mobile-specific styles */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+        align-items: flex-start;
+        min-height: 100vh;
+        height: auto;
+      }
+      
+      .container {
+        padding: 20px;
+        border-radius: 15px;
+        margin: 10px 0;
+      }
+      
+      .app-header h1 {
+        font-size: 28px;
+      }
+      
+      .btn-group {
+        flex-direction: column;
+      }
+      
+      .task-filters {
+        justify-content: center;
+      }
+      
+      .user-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      
+      .user-email {
+        max-width: 100%;
+      }
+      
+      .task-stats {
+        flex-wrap: wrap;
+        gap: 15px;
+      }
+      
+      .stat-item {
+        flex: 1;
+        min-width: 80px;
+      }
+      
+      li {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      
+      .task-actions {
+        align-self: flex-end;
+      }
+      
+      input[type="email"], input[type="password"], input[type="text"] {
+        font-size: 16px; /* Prevents zoom on iOS */
+      }
+    }
+
+    /* PC-specific enhancements */
+    @media (min-width: 769px) {
+      .container {
+        max-width: 500px;
+      }
+      
+      .task-actions {
+        opacity: 0.7;
+        transition: var(--transition);
+      }
+      
+      li:hover .task-actions {
+        opacity: 1;
+      }
+    }
+
+    /* Very small devices */
+    @media (max-width: 360px) {
+      .container {
+        padding: 15px;
+      }
+      
+      .app-header h1 {
+        font-size: 24px;
+      }
+      
+      .app-header p {
+        font-size: 12px;
+      }
+      
+      button {
+        padding: 10px 15px;
+        font-size: 14px;
+      }
+      
+      .task-stats {
+        font-size: 12px;
+      }
+      
+      .stat-value {
+        font-size: 16px;
+      }
+    }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --light: #2d3436;
+        --dark: #f8f9fa;
+        --gray: #636e72;
+      }
+      
+      body {
+        background: linear-gradient(135deg, #2d3436 0%, #2d3436 100%);
+      }
+      
+      .container {
+        background: #2d3436;
+        color: #f8f9fa;
+      }
+      
+      input[type="email"], input[type="password"], input[type="text"] {
+        background-color: #3c4245;
+        color: #f8f9fa;
+        border-color: #636e72;
+      }
+      
+      input::placeholder {
+        color: #b2bec3;
+      }
+      
+      .filter-btn {
+        background-color: #3c4245;
+        color: #f8f9fa;
+      }
+      
+      li {
+        background-color: #3c4245;
+      }
+    }
+
+    /* Animation for task completion */
+    @keyframes taskComplete {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    .task-complete-animation {
+      animation: taskComplete 0.5s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Auth Section -->
+    <div class="auth-section" id="authSection">
+      <div class="app-header">
+        <h1><i class="fas fa-tasks"></i> TaskFlow</h1>
+        <p>Organize your tasks anywhere, anytime</p>
+      </div>
+      
+      <div class="input-group">
+        <i class="fas fa-envelope"></i>
+        <input type="email" id="email" placeholder="Enter your email" />
+      </div>
+      
+      <div class="input-group">
+        <i class="fas fa-lock"></i>
+        <input type="password" id="password" placeholder="Enter your password" />
+      </div>
+      
+      <div class="btn-group">
+        <button class="btn-primary" onclick="signUp()">
+          <i class="fas fa-user-plus"></i> Sign Up
+        </button>
+        <button class="btn-secondary" onclick="signIn()">
+          <i class="fas fa-sign-in-alt"></i> Sign In
+        </button>
+      </div>
+      
+      <p class="error" id="error"></p>
+    </div>
+
+    <!-- To-Do Section -->
+    <div class="todo-section" id="todoSection" style="display: none;">
+      <div class="user-info">
+        <div>
+          <h2>My Tasks</h2>
+          <span class="user-email" id="userEmail"></span>
+        </div>
+        <button class="btn-danger" onclick="signOut()" title="Sign Out">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+      
+      <div class="task-stats">
+        <div class="stat-item">
+          <span class="stat-value" id="totalTasks">0</span>
+          <span>Total</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="completedTasks">0</span>
+          <span>Completed</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="pendingTasks">0</span>
+          <span>Pending</span>
+        </div>
+      </div>
+      
+      <div class="task-filters">
+        <button class="filter-btn active" onclick="changeFilter('all')">All</button>
+        <button class="filter-btn" onclick="changeFilter('active')">Active</button>
+        <button class="filter-btn" onclick="changeFilter('completed')">Completed</button>
+      </div>
+      
+      <div class="input-group">
+        <i class="fas fa-plus"></i>
+        <input type="text" id="taskInput" placeholder="Add a new task..." onkeypress="handleKeyPress(event)" />
+      </div>
+      
+      <button class="btn-accent" onclick="addTask()">
+        <i class="fas fa-plus-circle"></i> Add Task
+      </button>
+      
+      <p class="error" id="taskError"></p>
+      
+      <ul id="taskList"></ul>
+    </div>
+  </div>
+
+  <!-- Firebase SDK (Modular) -->
+  <script type="module">
+    // Import Firebase SDK modules
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getDatabase, ref, push, set, onValue, update, remove, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDe8yzLDj8Y-gzHqS2arkwbD989LwIO4DQ",
+      authDomain: "todoapp-5d6ec.firebaseapp.com",
+      databaseURL: "https://todoapp-5d6ec-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "todoapp-5d6ec",
+      storageBucket: "todoapp-5d6ec.firebasestorage.app",
+      messagingSenderId: "720430702785",
+      appId: "1:720430702785:web:af612a4935cdc731ccb440",
+      measurementId: "G-YG48X4LZ97"
+    };
+
+    // Initialize Firebase
+    try {
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const database = getDatabase(app);
+      console.log('Firebase initialized successfully');
+
+      let currentFilter = 'all';
+
+      // Authentication functions
+      window.signUp = async function() {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const errorDisplay = document.getElementById('error');
+        if (!email || !password) {
+          errorDisplay.innerText = 'Please enter both email and password.';
+          console.error('Sign-up: Missing email or password');
+          return;
+        }
+        try {
+          await createUserWithEmailAndPassword(auth, email, password);
+          showTodoSection();
+          console.log('Sign-up successful, email:', email);
+        } catch (error) {
+          errorDisplay.innerText = error.message;
+          console.error('Sign-up error:', error);
+        }
+      };
+
+      window.signIn = async function() {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const errorDisplay = document.getElementById('error');
+        if (!email || !password) {
+          errorDisplay.innerText = 'Please enter both email and password.';
+          console.error('Sign-in: Missing email or password');
+          return;
+        }
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+          showTodoSection();
+          console.log('Sign-in successful, email:', email);
+        } catch (error) {
+          errorDisplay.innerText = error.message;
+          console.error('Sign-in error:', error);
+        }
+      };
+
+      window.signOut = async function() {
+        try {
+          await signOut(auth);
+          document.getElementById('authSection').style.display = 'block';
+          document.getElementById('todoSection').style.display = 'none';
+          document.getElementById('taskList').innerHTML = '';
+          document.getElementById('email').value = '';
+          document.getElementById('password').value = '';
+          document.getElementById('taskError').innerText = '';
+          document.getElementById('error').innerText = '';
+          console.log('Sign-out successful');
+        } catch (error) {
+          document.getElementById('error').innerText = error.message;
+          console.error('Sign-out error:', error);
+        }
+      };
+
+      // Show to-do section
+      function showTodoSection() {
+        document.getElementById('authSection').style.display = 'none';
+        document.getElementById('todoSection').style.display = 'block';
+        document.getElementById('error').innerText = '';
+        document.getElementById('taskError').innerText = '';
+        document.getElementById('userEmail').textContent = auth.currentUser.email;
+      }
+
+      // Handle Enter key press in task input
+      window.handleKeyPress = function(event) {
+        if (event.key === 'Enter') {
+          addTask();
+        }
+      };
+
+      // Add task
+      window.addTask = async function() {
+        const taskInput = document.getElementById('taskInput');
+        const taskText = taskInput.value.trim();
+        const taskError = document.getElementById('taskError');
+        console.log('Add Task clicked, taskText:', taskText, 'user:', auth.currentUser ? auth.currentUser.uid : 'No user');
+        if (!auth.currentUser) {
+          taskError.innerText = 'Please sign in to add tasks.';
+          console.error('Add Task: No user logged in');
+          return;
+        }
+        if (!taskText) {
+          taskError.innerText = 'Task cannot be empty.';
+          console.error('Add Task: Empty task input');
+          return;
+        }
+        try {
+          const userId = auth.currentUser.uid;
+          const taskRef = ref(database, `tasks/${userId}`);
+          await push(taskRef, {
+            text: taskText,
+            completed: false,
+            timestamp: serverTimestamp()
+          });
+          taskInput.value = '';
+          taskError.innerText = '';
+          console.log('Task added successfully:', taskText);
+        } catch (error) {
+          taskError.innerText = error.message;
+          console.error('Add Task error:', error);
+        }
+      };
+
+      // Change filter
+      window.changeFilter = function(filter) {
+        currentFilter = filter;
+        
+        // Update active button
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+        
+        // Re-render tasks with new filter
+        renderTasks(allTasks);
+      };
+
+      // Real-time task listener
+      let allTasks = [];
+      onAuthStateChanged(auth, user => {
+        console.log('Auth state changed, user:', user ? user.uid : 'No user');
+        if (user) {
+          const userId = user.uid;
+          document.getElementById('userEmail').textContent = user.email;
+          const tasksRef = ref(database, `tasks/${userId}`);
+          onValue(tasksRef, snapshot => {
+            allTasks = [];
+            if (snapshot.exists()) {
+              snapshot.forEach(child => {
+                allTasks.push({
+                  id: child.key,
+                  ...child.val()
+                });
+              });
+            }
+            renderTasks(allTasks);
+            updateTaskStats(allTasks);
+          }, error => {
+            document.getElementById('taskError').innerText = error.message;
+            console.error('Error fetching tasks:', error);
+          });
+        } else {
+          document.getElementById('taskList').innerHTML = '';
+          document.getElementById('taskError').innerText = '';
+        }
+      });
+
+      // Render tasks based on current filter
+      function renderTasks(tasks) {
+        const taskList = document.getElementById('taskList');
+        taskList.innerHTML = '';
+        
+        // Filter tasks based on current filter
+        const filteredTasks = tasks.filter(task => {
+          if (currentFilter === 'active') return !task.completed;
+          if (currentFilter === 'completed') return task.completed;
+          return true; // 'all' filter
+        });
+        
+        if (filteredTasks.length === 0) {
+          const emptyState = document.createElement('div');
+          emptyState.className = 'empty-state';
+          emptyState.innerHTML = `
+            <i class="fas fa-clipboard-list"></i>
+            <p>No ${currentFilter !== 'all' ? currentFilter : ''} tasks found</p>
+          `;
+          taskList.appendChild(emptyState);
+          return;
+        }
+        
+        filteredTasks.forEach(task => {
+          const li = document.createElement('li');
+          if (task.completed) {
+            li.classList.add('completed');
+          }
+          li.innerHTML = `
+            <button class="btn-success" onclick="toggleTask('${task.id}', ${task.completed})">
+              <i class="fas fa-${task.completed ? 'check-circle' : 'circle'}"></i>
+            </button>
+            <span class="task-text">${task.text}</span>
+            <div class="task-actions">
+              <button class="btn-danger" onclick="deleteTask('${task.id}')">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          `;
+          taskList.appendChild(li);
+        });
+      }
+
+      // Update task statistics
+      function updateTaskStats(tasks) {
+        const totalTasks = tasks.length;
+        const completedTasks = tasks.filter(task => task.completed).length;
+        const pendingTasks = totalTasks - completedTasks;
+        
+        document.getElementById('totalTasks').textContent = totalTasks;
+        document.getElementById('completedTasks').textContent = completedTasks;
+        document.getElementById('pendingTasks').textContent = pendingTasks;
+      }
+
+      // Toggle task completion
+      window.toggleTask = async function(taskId, completed) {
+        if (!auth.currentUser) {
+          document.getElementById('taskError').innerText = 'Please sign in.';
+          console.error('Toggle Task: No user logged in');
+          return;
+        }
+        const userId = auth.currentUser.uid;
+        const taskRef = ref(database, `tasks/${userId}/${taskId}`);
+        try {
+          await update(taskRef, { completed: !completed });
+          
+          // Add animation class to the task item
+          const taskItems = document.querySelectorAll('li');
+          taskItems.forEach(item => {
+            if (item.querySelector('.btn-success').onclick.toString().includes(taskId)) {
+              item.classList.add('task-complete-animation');
+              setTimeout(() => {
+                item.classList.remove('task-complete-animation');
+              }, 500);
+            }
+          });
+          
+          console.log('Task toggled:', taskId);
+        } catch (error) {
+          document.getElementById('taskError').innerText = error.message;
+          console.error('Toggle Task error:', error);
+        }
+      };
+
+      // Delete task
+      window.deleteTask = async function(taskId) {
+        if (!auth.currentUser) {
+          document.getElementById('taskError').innerText = 'Please sign in.';
+          console.error('Delete Task: No user logged in');
+          return;
+        }
+        const userId = auth.currentUser.uid;
+        const taskRef = ref(database, `tasks/${userId}/${taskId}`);
+        try {
+          await remove(taskRef);
+          console.log('Task deleted:', taskId);
+        } catch (error) {
+          document.getElementById('taskError').innerText = error.message;
+          console.error('Delete Task error:', error);
+        }
+      };
+    } catch (error) {
+      document.getElementById('error').innerText = 'Failed to initialize Firebase: ' + error.message;
+      console.error('Firebase initialization error:', error);
+    }
+  </script>
+</body>
+</html>
