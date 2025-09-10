@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TickTick-Style Task Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #4589F0;
+      --primary-dark: #3A75D0;
+      --secondary: #7BA8F5;
+      --accent: #FF8F71;
+      --light: #f8f9fa;
+      --dark: #2d3436;
+      --success: #43CC8C;
+      --warning: #FFB84D;
+      --danger: #FF5252;
+      --gray: #F0F0F0;
+      --dark-gray: #8E8E93;
+    }
+
+    [data-theme="dark"] {
+      --primary: #5E9AF9;
+      --primary-dark: #4B7ED6;
+      --secondary: #8CB6F7;
+      --accent: #FF9F81;
+      --light: #1C1C1E;
+      --dark: #F2F2F7;
+      --success: #53DC9C;
+      --warning: #FFC85D;
+      --danger: #FF6262;
+      --gray: #2C2C2E;
+      --dark-gray: #8E8E93;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--light);
+      color: var(--dark);
+      transition: all 0.3s ease;
+    }
+
+    .task-checkbox:checked + .task-title {
+      text-decoration: line-through;
+      color: var(--dark-gray);
+    }
+
+    .priority-high {
+      color: var(--danger);
+    }
+
+    .priority-medium {
+      color: var(--warning);
+    }
+
+    .priority-low {
+      color: var(--success);
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--dark-gray);
+      border-radius: 3px;
+    }
+
+    /* Calendar styles */
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    
+    .calendar-day {
+      min-height: 80px;
+      border: 1px solid var(--gray);
+      padding: 4px;
+      cursor: pointer;
+    }
+    
+    .calendar-day:hover {
+      background-color: var(--primary);
+      color: white;
+    }
+    
+    .calendar-day.other-month {
+      color: var(--dark-gray);
+    }
+    
+    .calendar-day.today {
+      background-color: var(--primary);
+      color: white;
+    }
+    
+    .calendar-day.has-tasks {
+      background-color: rgba(69, 137, 240, 0.1);
+    }
+    
+    .calendar-task-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--primary);
+      display: inline-block;
+      margin-right: 2px;
+    }
+    
+    .calendar-task-dot.completed {
+      background-color: var(--success);
+    }
+    
+    .calendar-task-dot.high {
+      background-color: var(--danger);
+    }
+    
+    .calendar-task-dot.medium {
+      background-color: var(--warning);
+    }
+
+    /* Tab styles */
+    .tab-button {
+      padding: 8px 16px;
+      border-radius: 6px 6px 0 0;
+      background-color: var(--gray);
+      border: none;
+      cursor: pointer;
+    }
+    
+    .tab-button.active {
+      background-color: white;
+      border-bottom: 2px solid var(--primary);
+    }
+    
+    [data-theme="dark"] .tab-button.active {
+      background-color: var(--light);
+      border-bottom: 2px solid var(--primary);
+    }
+
+    /* Quick add task expansion */
+    .quick-add-minimized {
+      cursor: pointer;
+      padding: 12px;
+      background-color: var(--primary);
+      color: white;
+      border-radius: 8px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    
+    .quick-add-expanded {
+      background-color: white;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 16px;
+    }
+    
+    [data-theme="dark"] .quick-add-expanded {
+      background-color: var(--gray);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gray-50">
+  <div id="app">
+    <!-- Auth Section -->
+    <div id="authSection" class="min-h-screen flex items-center justify-center p-6">
+      <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        <div class="text-center mb-8">
+          <h1 class="text-3xl font-bold text-indigo-600 flex items-center justify-center gap-2">
+            <i class="fas fa-check-circle"></i> TickTask
+          </h1>
+          <p class="text-gray-600 mt-2">Your personal task management solution</p>
+        </div>
+        
+        <div id="authError" class="bg-red-100 text-red-700 p-3 rounded mb-4 hidden"></div>
+        <div id="authSuccess" class="bg-green-100 text-green-700 p-3 rounded mb-4 hidden"></div>
+        
+        <div id="loginForm">
+          <div class="mb-4">
+            <label class="block text-gray-700 mb-2" for="loginEmail">Email</label>
+            <input type="email" id="loginEmail" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Enter your email">
+          </div>
+          <div class="mb-6">
+            <label class="block text-gray-700 mb-2" for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Enter your password">
+          </div>
+          <button id="loginBtn" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition mb-4">
+            Sign In
+          </button>
+          <div class="text-center">
+            <a href="#" id="showSignup" class="text-indigo-600 hover:underline">Create an account</a> • 
+            <a href="#" id="showReset" class="text-indigo-600 hover:underline ml-2">Forgot password?</a>
+          </div>
+        </div>
+        
+        <div id="signupForm" class="hidden">
+          <div class="mb-4">
+            <label class="block text-gray-700 mb-2" for="signupEmail">Email</label>
+            <input type="email" id="signupEmail" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Enter your email">
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 mb-2" for="signupPassword">Password</label>
+            <input type="password" id="signupPassword" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Create a password">
+          </div>
+          <div class="mb-6">
+            <label class="block text-gray-700 mb-2" for="confirmPassword">Confirm Password</label>
+            <input type="password" id="confirmPassword" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Confirm your password">
+          </div>
+          <button id="signupBtn" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition mb-4">
+            Create Account
+          </button>
+          <div class="text-center">
+            <a href="#" id="showLogin" class="text-indigo-600 hover:underline">Back to login</a>
+          </div>
+        </div>
+        
+        <div id="resetForm" class="hidden">
+          <div class="mb-6">
+            <label class="block text-gray-700 mb-2" for="resetEmail">Email</label>
+            <input type="email" id="resetEmail" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Enter your email">
+          </div>
+          <button id="resetBtn" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition mb-4">
+            Send Reset Link
+          </button>
+          <div class="text-center">
+            <a href="#" id="showLoginFromReset" class="text-indigo-600 hover:underline">Back to login</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main App Section -->
+    <div id="appSection" class="hidden min-h-screen p-6">
+      <div class="max-w-6xl mx-auto">
+        <header class="flex items-center justify-between mb-6 bg-white p-4 rounded-lg shadow-sm">
+          <div>
+            <h1 class="text-2xl font-bold text-indigo-600 flex items-center gap-2">
+              <i class="fas fa-check-circle"></i> TickTask
+            </h1>
+            <p class="text-sm text-gray-600" id="userEmailDisplay">Welcome!</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <input id="searchInput" placeholder="Search tasks..." class="px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-200">
+              <i class="fas fa-moon"></i>
+            </button>
+            <button id="logoutBtn" class="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+              <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+          </div>
+        </header>
+
+        <main class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <aside class="space-y-4">
+            <div class="bg-white p-4 rounded-lg shadow-sm">
+              <h3 class="font-semibold mb-3 text-lg">Views</h3>
+              <nav class="flex flex-col gap-1">
+                <button data-filter="all" class="filter-btn text-left px-3 py-2 rounded-lg hover:bg-indigo-50 text-indigo-600 flex items-center gap-2">
+                  <i class="fas fa-list"></i> All Tasks
+                </button>
+                <button data-filter="inbox" class="filter-btn text-left px-3 py-2 rounded-lg hover:bg-indigo-50 flex items-center gap-2">
+                  <i class="fas fa-inbox"></i> Inbox
+                </button>
+                <button data-filter="today" class="filter-btn text-left px-3 py-2 rounded-lg hover:bg-indigo-50 flex items-center gap-2">
+                  <i class="fas fa-calendar-day"></i> Today
+                </button>
+                <button data-filter="upcoming" class="filter-btn text-left px-3 py-2 rounded-lg hover:bg-indigo-50 flex items-center gap-2">
+                  <i class="fas fa-calendar-week"></i> Upcoming
+                </button>
+                <button data-filter="completed" class="filter-btn text-left px-3 py-2 rounded-lg hover:bg-indigo-50 flex items-center gap-2">
+                  <i class="fas fa-check-circle"></i> Completed
+                </button>
+                <button data-filter="calendar" class="filter-btn text-left px-3 py-2 rounded-lg hover:bg-indigo-50 flex items-center gap-2">
+                  <i class="fas fa-calendar-alt"></i> Calendar
+                </button>
+              </nav>
+            </div>
+
+            <div id="quickAddMinimized" class="quick-add-minimized">
+              <i class="fas fa-plus mr-2"></i> Add New Task
+            </div>
+
+            <div id="quickAddExpanded" class="quick-add-expanded hidden">
+              <h3 class="font-semibold mb-3 text-lg">Quick Add</h3>
+              <div class="space-y-3">
+                <input id="taskTitle" placeholder="Task title" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <input id="taskDue" type="datetime-local" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <div class="flex gap-2">
+                  <select id="taskPriority" class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="Low">Low</option>
+                    <option value="Medium" selected>Medium</option>
+                    <option value="High">High</option>
+                  </select>
+                  <select id="taskRepeat" class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="none">No repeat</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </div>
+                <input id="taskTags" placeholder="tags,comma,separated" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <textarea id="taskNotes" placeholder="Notes (optional)" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" rows="2"></textarea>
+                <div class="flex gap-2">
+                  <button id="addTaskBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex-1">
+                    <i class="fas fa-plus mr-2"></i> Add Task
+                  </button>
+                  <button id="resetFormBtn" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
+                    <i class="fas fa-redo"></i>
+                  </button>
+                  <button id="minimizeFormBtn" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
+                    <i class="fas fa-minus"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-lg shadow-sm">
+              <h3 class="font-semibold mb-3 text-lg">Stats</h3>
+              <p class="text-sm mb-1">Total: <strong id="totalTasks">0</strong></p>
+              <p class="text-sm mb-1">Pending: <strong id="pendingTasks">0</strong></p>
+              <p class="text-sm">Completed: <strong id="completedTasks">0</strong></p>
+            </div>
+          </aside>
+
+          <section class="md:col-span-2">
+            <div class="bg-white p-4 rounded-lg shadow-sm mb-4">
+              <div class="flex border-b mb-3">
+                <button class="tab-button active" data-tab="list">List View</button>
+                <button class="tab-button" data-tab="calendar">Calendar View</button>
+              </div>
+              
+              <h2 class="font-semibold text-lg mb-3" id="viewTitle">All Tasks</h2>
+
+              <div id="listView">
+                <div class="space-y-3" id="tasksContainer">
+                  <!-- Tasks will be rendered here -->
+                  <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-tasks text-4xl mb-3"></i>
+                    <p>No tasks yet. Add your first task!</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div id="calendarView" class="hidden">
+                <div class="flex justify-between items-center mb-4">
+                  <button id="prevMonth" class="p-2 rounded-full hover:bg-gray-200">
+                    <i class="fas fa-chevron-left"></i>
+                  </button>
+                  <h3 id="calendarMonth" class="font-semibold text-lg">September 2023</h3>
+                  <button id="nextMonth" class="p-2 rounded-full hover:bg-gray-200">
+                    <i class="fas fa-chevron-right"></i>
+                  </button>
+                </div>
+                
+                <div class="calendar-grid mb-2">
+                  <div class="text-center font-semibold">Sun</div>
+                  <div class="text-center font-semibold">Mon</div>
+                  <div class="text-center font-semibold">Tue</div>
+                  <div class="text-center font-semibold">Wed</div>
+                  <div class="text-center font-semibold">Thu</div>
+                  <div class="text-center font-semibold">Fri</div>
+                  <div class="text-center font-semibold">Sat</div>
+                </div>
+                
+                <div class="calendar-grid" id="calendarDays">
+                  <!-- Calendar days will be rendered here -->
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-lg shadow-sm">
+              <h3 class="font-semibold mb-3 text-lg">Recently Completed</h3>
+              <div class="space-y-2" id="completedContainer">
+                <!-- Completed tasks will be rendered here -->
+                <div class="text-center py-4 text-gray-500">
+                  <p>No completed tasks yet.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <footer class="text-center text-sm text-gray-500 mt-8">
+          Made with ❤️ — Your tasks are securely stored in Firebase.
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase App (the core Firebase SDK is always required) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <!-- Firebase Authentication -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <!-- Firebase Firestore -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <script>
+    // Firebase configuration - UPDATED
+    const firebaseConfig = {
+      apiKey: "AIzaSyDe8yzLDj8Y-gzHqS2arkwbD989LwIO4DQ",
+      authDomain: "todoapp-5d6ec.firebaseapp.com",
+      databaseURL: "https://todoapp-5d6ec.firebaseio.com", // Updated to standard Firebase URL
+      projectId: "todoapp-5d6ec",
+      storageBucket: "todoapp-5d6ec.firebasestorage.app",
+      messagingSenderId: "720430702785",
+      appId: "1:720430702785:web:af612a4935cdc731ccb440",
+      measurementId: "G-YG48X4LZ97"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // DOM elements
+    const authSection = document.getElementById('authSection');
+    const appSection = document.getElementById('appSection');
+    const loginForm = document.getElementById('loginForm');
+    const signupForm = document.getElementById('signupForm');
+    const resetForm = document.getElementById('resetForm');
+    const authError = document.getElementById('authError');
+    const authSuccess = document.getElementById('authSuccess');
+    const userEmailDisplay = document.getElementById('userEmailDisplay');
+    
+    // Auth navigation
+    document.getElementById('showSignup').addEventListener('click', () => {
+      loginForm.classList.add('hidden');
+      resetForm.classList.add('hidden');
+      signupForm.classList.remove('hidden');
+    });
+    
+    document.getElementById('showLogin').addEventListener('click', () => {
+      signupForm.classList.add('hidden');
+      resetForm.classList.add('hidden');
+      loginForm.classList.remove('hidden');
+    });
+    
+    document.getElementById('showReset').addEventListener('click', () => {
+      loginForm.classList.add('hidden');
+      signupForm.classList.add('hidden');
+      resetForm.classList.remove('hidden');
+    });
+    
+    document.getElementById('showLoginFromReset').addEventListener('click', () => {
+      resetForm.classList.add('hidden');
+      signupForm.classList.add('hidden');
+      loginForm.classList.remove('hidden');
+    });
+
+    // Auth functions
+    document.getElementById('loginBtn').addEventListener('click', () => {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      
+      if (!email || !password) {
+        showAuthError('Please enter both email and password');
+        return;
+      }
+      
+      auth.signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          // Signed in
+          showAuthSuccess('Successfully signed in!');
+          setTimeout(() => {
+            authSection.classList.add('hidden');
+            appSection.classList.remove('hidden');
+            userEmailDisplay.textContent = userCredential.user.email;
+            loadTasks();
+          }, 1000);
+        })
+        .catch((error) => {
+          showAuthError(error.message);
+        });
+    });
+
+    document.getElementById('signupBtn').addEventListener('click', () => {
+      const email = document.getElementById('signupEmail').value;
+      const password = document.getElementById('signupPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      
+      if (!email || !password || !confirmPassword) {
+        showAuthError('Please fill all fields');
+        return;
+      }
+      
+      if (password !== confirmPassword) {
+        showAuthError('Passwords do not match');
+        return;
+      }
+      
+      if (password.length < 6) {
+        showAuthError('Password should be at least 6 characters');
+        return;
+      }
+      
+      auth.createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          // Signed up
+          showAuthSuccess('Account created successfully!');
+          setTimeout(() => {
+            authSection.classList.add('hidden');
+            appSection.classList.remove('hidden');
+            userEmailDisplay.textContent = userCredential.user.email;
+          }, 1000);
+        })
+        .catch((error) => {
+          showAuthError(error.message);
+        });
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      const email = document.getElementById('resetEmail').value;
+      
+      if (!email) {
+        showAuthError('Please enter your email address');
+        return;
+      }
+      
+      auth.sendPasswordResetEmail(email)
+        .then(() => {
+          showAuthSuccess('Password reset email sent! Check your inbox.');
+        })
+        .catch((error) => {
+          showAuthError(error.message);
+        });
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      auth.signOut().then(() => {
+        appSection.classList.add('hidden');
+        authSection.classList.remove('hidden');
+        // Clear forms
+        document.getElementById('loginEmail').value = '';
+        document.getElementById('loginPassword').value = '';
+        document.getElementById('signupEmail').value = '';
+        document.getElementById('signupPassword').value = '';
+        document.getElementById('confirmPassword').value = '';
+        document.getElementById('resetEmail').value = '';
+        // Hide error/success messages
+        authError.classList.add('hidden');
+        authSuccess.classList.add('hidden');
+      });
+    });
+
+    // Helper functions
+    function showAuthError(message) {
+      authError.textContent = message;
+      authError.classList.remove('hidden');
+      authSuccess.classList.add('hidden');
+    }
+
+    function showAuthSuccess(message) {
+      authSuccess.textContent = message;
+      authSuccess.classList.remove('hidden');
+      authError.classList.add('hidden');
+    }
+
+    // Theme toggle - FIXED
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      const body = document.body;
+      if (body.getAttribute('data-theme') === 'dark') {
+        body.removeAttribute('data-theme');
+        document.getElementById('themeToggle').innerHTML = '<i class="fas fa-moon"></i>';
+        localStorage.setItem('theme', 'light');
+      } else {
+        body.setAttribute('data-theme', 'dark');
+        document.getElementById('themeToggle').innerHTML = '<i class="fas fa-sun"></i>';
+        localStorage.setItem('theme', 'dark');
+      }
+    });
+
+    // Check for saved theme preference
+    if (localStorage.getItem('theme') === 'dark') {
+      document.body.setAttribute('data-theme', 'dark');
+      document.getElementById('themeToggle').innerHTML = '<i class="fas fa-sun"></i>';
+    }
+
+    // Task management
+    let tasks = [];
+    let currentFilter = 'all';
+    let currentCalendarDate = new Date();
+
+    // Initialize task form with today's date
+    document.getElementById('taskDue').value = new Date().toISOString().slice(0, 16);
+
+    // Quick add task form toggle
+    document.getElementById('quickAddMinimized').addEventListener('click', () => {
+      document.getElementById('quickAddMinimized').classList.add('hidden');
+      document.getElementById('quickAddExpanded').classList.remove('hidden');
+    });
+    
+    document.getElementById('minimizeFormBtn').addEventListener('click', () => {
+      document.getElementById('quickAddExpanded').classList.add('hidden');
+      document.getElementById('quickAddMinimized').classList.remove('hidden');
+    });
+
+    // Add task
+    document.getElementById('addTaskBtn').addEventListener('click', addTask);
+    document.getElementById('resetFormBtn').addEventListener('click', resetTaskForm);
+
+    function addTask() {
+      const title = document.getElementById('taskTitle').value.trim();
+      if (!title) return;
+      
+      const user = auth.currentUser;
+      if (!user) return;
+      
+      const task = {
+        id: Date.now().toString(),
+        title: title,
+        notes: document.getElementById('taskNotes').value.trim(),
+        due: document.getElementById('taskDue').value ? new Date(document.getElementById('taskDue').value).toISOString() : null,
+        priority: document.getElementById('taskPriority').value,
+        tags: document.getElementById('taskTags').value ? document.getElementById('taskTags').value.split(',').map(s => s.trim()).filter(Boolean) : [],
+        completed: false,
+        completedAt: null,
+        repeat: document.getElementById('taskRepeat').value,
+        createdAt: new Date().toISOString(),
+        userId: user.uid
+      };
+      
+      // Save to Firestore
+      db.collection('tasks').doc(task.id).set(task)
+        .then(() => {
+          tasks.unshift(task);
+          renderTasks();
+          resetTaskForm();
+          updateStats();
+          renderCalendar();
+        })
+        .catch((error) => {
+          console.error('Error adding task: ', error);
+        });
+    }
+
+    function resetTaskForm() {
+      document.getElementById('taskTitle').value = '';
+      document.getElementById('taskNotes').value = '';
+      document.getElementById('taskDue').value = new Date().toISOString().slice(0, 16);
+      document.getElementById('taskPriority').value = 'Medium';
+      document.getElementById('taskRepeat').value = 'none';
+      document.getElementById('taskTags').value = '';
+    }
+
+    function toggleComplete(id) {
+      const task = tasks.find(t => t.id === id);
+      if (!task) return;
+      
+      const updatedTask = {
+        ...task,
+        completed: !task.completed,
+        completedAt: task.completed ? null : new Date().toISOString()
+      };
+      
+      // Handle recurring tasks
+      if (!task.completed && task.repeat !== 'none') {
+        const nextDue = computeNextDue(task.due, task.repeat);
+        if (nextDue) {
+          const nextTask = {
+            ...task,
+            id: Date.now().toString(),
+            completed: false,
+            completedAt: null,
+            due: nextDue,
+            createdAt: new Date().toISOString()
+          };
+          
+          db.collection('tasks').doc(nextTask.id).set(nextTask)
+            .then(() => {
+              tasks.unshift(nextTask);
+            })
+            .catch((error) => {
+              console.error('Error adding recurring task: ', error);
+            });
+        }
+      }
+      
+      // Update in Firestore
+      db.collection('tasks').doc(id).update(updatedTask)
+        .then(() => {
+          const index = tasks.findIndex(t => t.id === id);
+          if (index !== -1) {
+            tasks[index] = updatedTask;
+            renderTasks();
+            updateStats();
+            renderCalendar();
+          }
+        })
+        .catch((error) => {
+          console.error('Error updating task: ', error);
+        });
+    }
+
+    function computeNextDue(iso, repeat) {
+      if (!iso) return null;
+      const dt = new Date(iso);
+      if (repeat === 'daily') dt.setDate(dt.getDate() + 1);
+      else if (repeat === 'weekly') dt.setDate(dt.getDate() + 7);
+      else if (repeat === 'monthly') dt.setMonth(dt.getMonth() + 1);
+      else if (repeat === 'yearly') dt.setFullYear(dt.getFullYear() + 1);
+      return dt.toISOString();
+    }
+
+    function deleteTask(id) {
+      if (!confirm('Are you sure you want to delete this task?')) return;
+      
+      db.collection('tasks').doc(id).delete()
+        .then(() => {
+          tasks = tasks.filter(t => t.id !== id);
+          renderTasks();
+          updateStats();
+          renderCalendar();
+        })
+        .catch((error) => {
+          console.error('Error deleting task: ', error);
+        });
+    }
+
+    function snoozeTask(id, days = 1) {
+      const task = tasks.find(t => t.id === id);
+      if (!task) return;
+      
+      const newDue = task.due 
+        ? new Date(new Date(task.due).getTime() + days * 24 * 3600 * 1000).toISOString()
+        : new Date(Date.now() + days * 24 * 3600 * 1000).toISOString();
+      
+      const updatedTask = {
+        ...task,
+        due: newDue
+      };
+      
+      db.collection('tasks').doc(id).update(updatedTask)
+        .then(() => {
+          const index = tasks.findIndex(t => t.id === id);
+          if (index !== -1) {
+            tasks[index] = updatedTask;
+            renderTasks();
+            renderCalendar();
+          }
+        })
+        .catch((error) => {
+          console.error('Error snoozing task: ', error);
+        });
+    }
+
+    function loadTasks() {
+      const user = auth.currentUser;
+      if (!user) return;
+      
+      db.collection('tasks')
+        .where('userId', '==', user.uid)
+        .orderBy('createdAt', 'desc')
+        .onSnapshot((snapshot) => {
+          tasks = [];
+          snapshot.forEach((doc) => {
+            tasks.push(doc.data());
+          });
+          renderTasks();
+          updateStats();
+          renderCalendar();
+        }, (error) => {
+          console.error('Error loading tasks: ', error);
+        });
+    }
+
+    function renderTasks() {
+      const tasksContainer = document.getElementById('tasksContainer');
+      const completedContainer = document.getElementById('completedContainer');
+      
+      // Filter tasks based on current view
+      let filteredTasks = tasks.filter(task => {
+        if (currentFilter === 'completed') return task.completed;
+        if (currentFilter === 'calendar') return true; // Calendar view shows all
+        if (task.completed) return false;
+        
+        if (currentFilter === 'inbox') return !task.due;
+        if (currentFilter === 'today') return isToday(task.due);
+        if (currentFilter === 'upcoming') return task.due && new Date(task.due) > new Date();
+        
+        return true; // 'all' filter
+      });
+      
+      // Group tasks by date
+      const tasksByDate = {};
+      filteredTasks.forEach(task => {
+        let dateKey;
+        if (task.due) {
+          const dueDate = new Date(task.due);
+          dateKey = dueDate.toDateString();
+        } else {
+          dateKey = "No Due Date";
+        }
+        
+        if (!tasksByDate[dateKey]) {
+          tasksByDate[dateKey] = [];
+        }
+        tasksByDate[dateKey].push(task);
+      });
+      
+      // Render main tasks
+      if (filteredTasks.length === 0) {
+        tasksContainer.innerHTML = `
+          <div class="text-center py-8 text-gray-500">
+            <i class="fas fa-tasks text-4xl mb-3"></i>
+            <p>No tasks found.</p>
+          </div>
+        `;
+      } else {
+        let tasksHTML = '';
+        
+        // Sort date keys chronologically
+        const sortedDateKeys = Object.keys(tasksByDate).sort((a, b) => {
+          if (a === "No Due Date") return 1;
+          if (b === "No Due Date") return -1;
+          return new Date(a) - new Date(b);
+        });
+        
+        sortedDateKeys.forEach(dateKey => {
+          const dateTasks = tasksByDate[dateKey];
+          
+          tasksHTML += `
+            <div class="mb-4">
+              <h3 class="font-semibold text-gray-700 mb-2 border-b pb-1">${dateKey}</h3>
+              <div class="space-y-3">
+                ${dateTasks.map(task => `
+                  <div class="border rounded-lg p-4 flex items-start gap-3 fade-in">
+                    <div class="flex-shrink-0 mt-1">
+                      <input type="checkbox" ${task.completed ? 'checked' : ''} 
+                        onchange="toggleComplete('${task.id}')" 
+                        class="task-checkbox w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                    </div>
+                    <div class="flex-1">
+                      <div class="flex justify-between items-start">
+                        <div>
+                          <h3 class="task-title font-medium ${task.completed ? 'line-through text-gray-400' : ''}">${task.title}</h3>
+                          ${task.notes ? `<p class="text-sm text-gray-500 mt-1">${task.notes}</p>` : ''}
+                        </div>
+                        <div class="text-right">
+                          ${task.due ? `<div class="text-sm">${formatDateTime(task.due)}</div>` : '<div class="text-sm text-gray-400">No due</div>'}
+                          <div class="text-xs mt-1 priority-${task.priority.toLowerCase()}">${task.priority}</div>
+                        </div>
+                      </div>
+                      <div class="mt-3 flex items-center justify-between">
+                        <div class="flex gap-1">
+                          ${task.tags.map(tag => `<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">${tag}</span>`).join('')}
+                        </div>
+                        <div class="flex gap-2">
+                          <button onclick="snoozeTask('${task.id}', 1)" class="text-xs text-indigo-600 hover:text-indigo-800">
+                            <i class="fas fa-clock"></i> Snooze
+                          </button>
+                          <button onclick="deleteTask('${task.id}')" class="text-xs text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i> Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        });
+        
+        tasksContainer.innerHTML = tasksHTML;
+      }
+      
+      // Render completed tasks
+      const completedTasks = tasks.filter(task => task.completed).slice(0, 5);
+      if (completedTasks.length === 0) {
+        completedContainer.innerHTML = `
+          <div class="text-center py-4 text-gray-500">
+            <p>No completed tasks yet.</p>
+          </div>
+        `;
+      } else {
+        completedContainer.innerHTML = completedTasks.map(task => `
+          <div class="border rounded-lg p-3 flex items-center gap-3 fade-in">
+            <div class="flex-shrink-0">
+              <input type="checkbox" checked onchange="toggleComplete('${task.id}')" 
+                class="task-checkbox w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+            </div>
+            <div class="flex-1">
+              <h3 class="text-sm line-through text-gray-400">${task.title}</h3>
+              <div class="text-xs text-gray-500">Completed on ${formatDateTime(task.completedAt)}</div>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    function formatDateTime(isoString) {
+      if (!isoString) return '';
+      const date = new Date(isoString);
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    }
+
+    function isToday(isoString) {
+      if (!isoString) return false;
+      const today = new Date();
+      const date = new Date(isoString);
+      return date.getDate() === today.getDate() &&
+             date.getMonth() === today.getMonth() &&
+             date.getFullYear() === today.getFullYear();
+    }
+
+    function updateStats() {
+      const total = tasks.length;
+      const completed = tasks.filter(t => t.completed).length;
+      const pending = total - completed;
+      
+      document.getElementById('totalTasks').textContent = total;
+      document.getElementById('completedTasks').textContent = completed;
+      document.getElementById('pendingTasks').textContent = pending;
+    }
+
+    // Filter tasks
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentFilter = btn.getAttribute('data-filter');
+        document.getElementById('viewTitle').textContent = btn.textContent.trim();
+        
+        // Update active state
+        document.querySelectorAll('.filter-btn').forEach(b => {
+          b.classList.remove('text-indigo-600');
+          b.classList.remove('hover:bg-indigo-50');
+        });
+        btn.classList.add('text-indigo-600');
+        btn.classList.add('hover:bg-indigo-50');
+        
+        renderTasks();
+      });
+    });
+
+    // Tab switching
+    document.querySelectorAll('.tab-button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.getAttribute('data-tab');
+        
+        // Update active tab
+        document.querySelectorAll('.tab-button').forEach(b => {
+          b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        
+        // Show appropriate view
+        if (tab === 'list') {
+          document.getElementById('listView').classList.remove('hidden');
+          document.getElementById('calendarView').classList.add('hidden');
+        } else {
+          document.getElementById('listView').classList.add('hidden');
+          document.getElementById('calendarView').classList.remove('hidden');
+          renderCalendar();
+        }
+      });
+    });
+
+    // Calendar navigation
+    document.getElementById('prevMonth').addEventListener('click', () => {
+      currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+      renderCalendar();
+    });
+
+    document.getElementById('nextMonth').addEventListener('click', () => {
+      currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+      renderCalendar();
+    });
+
+    function renderCalendar() {
+      const calendarDays = document.getElementById('calendarDays');
+      const calendarMonth = document.getElementById('calendarMonth');
+      
+      // Set month title
+      calendarMonth.textContent = currentCalendarDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+      
+      // Get first day of month and total days
+      const firstDay = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), 1);
+      const lastDay = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + 1, 0);
+      const daysInMonth = lastDay.getDate();
+      const startDayOfWeek = firstDay.getDay(); // 0 = Sunday
+      
+      // Get days from previous month
+      const prevMonthLastDay = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), 0).getDate();
+      
+      let calendarHTML = '';
+      
+      // Previous month days
+      for (let i = startDayOfWeek - 1; i >= 0; i--) {
+        const day = prevMonthLastDay - i;
+        const dateStr = `${currentCalendarDate.getFullYear()}-${currentCalendarDate.getMonth()}-${day}`;
+        const tasksForDay = getTasksForDay(new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() - 1, day));
+        
+        calendarHTML += `
+          <div class="calendar-day other-month">
+            <div class="text-right text-sm">${day}</div>
+            <div class="mt-1">
+              ${tasksForDay.map(task => `
+                <div class="calendar-task-dot ${task.completed ? 'completed' : ''} ${task.priority.toLowerCase() === 'high' ? 'high' : task.priority.toLowerCase() === 'medium' ? 'medium' : ''}"></div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+      
+      // Current month days
+      const today = new Date();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), day);
+        const tasksForDay = getTasksForDay(date);
+        const isToday = date.toDateString() === today.toDateString();
+        
+        calendarHTML += `
+          <div class="calendar-day ${isToday ? 'today' : ''} ${tasksForDay.length > 0 ? 'has-tasks' : ''}">
+            <div class="text-right text-sm">${day}</div>
+            <div class="mt-1">
+              ${tasksForDay.map(task => `
+                <div class="calendar-task-dot ${task.completed ? 'completed' : ''} ${task.priority.toLowerCase() === 'high' ? 'high' : task.priority.toLowerCase() === 'medium' ? 'medium' : ''}"></div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+      
+      // Next month days
+      const totalCells = 42; // 6 weeks of 7 days
+      const remainingCells = totalCells - (startDayOfWeek + daysInMonth);
+      for (let day = 1; day <= remainingCells; day++) {
+        const dateStr = `${currentCalendarDate.getFullYear()}-${currentCalendarDate.getMonth() + 2}-${day}`;
+        const tasksForDay = getTasksForDay(new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + 1, day));
+        
+        calendarHTML += `
+          <div class="calendar-day other-month">
+            <div class="text-right text-sm">${day}</div>
+            <div class="mt-1">
+              ${tasksForDay.map(task => `
+                <div class="calendar-task-dot ${task.completed ? 'completed' : ''} ${task.priority.toLowerCase() === 'high' ? 'high' : task.priority.toLowerCase() === 'medium' ? 'medium' : ''}"></div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+      
+      calendarDays.innerHTML = calendarHTML;
+    }
+
+    function getTasksForDay(date) {
+      return tasks.filter(task => {
+        if (!task.due) return false;
+        const taskDate = new Date(task.due);
+        return taskDate.getDate() === date.getDate() &&
+               taskDate.getMonth() === date.getMonth() &&
+               taskDate.getFullYear() === date.getFullYear();
+      });
+    }
+
+    // Search functionality
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      const searchTerm = e.target.value.toLowerCase();
+      
+      if (searchTerm) {
+        const filteredTasks = tasks.filter(task => 
+          task.title.toLowerCase().includes(searchTerm) || 
+          (task.notes && task.notes.toLowerCase().includes(searchTerm)) ||
+          task.tags.some(tag => tag.toLowerCase().includes(searchTerm))
+        );
+        
+        // Temporarily replace tasks with search results
+        const originalTasks = [...tasks];
+        tasks = filteredTasks;
+        renderTasks();
+        tasks = originalTasks;
+      } else {
+        renderTasks();
+      }
+    });
+
+    // Initialize app
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        authSection.classList.add('hidden');
+        appSection.classList.remove('hidden');
+        userEmailDisplay.textContent = user.email;
+        loadTasks();
+      } else {
+        authSection.classList.remove('hidden');
+        appSection.classList.add('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
